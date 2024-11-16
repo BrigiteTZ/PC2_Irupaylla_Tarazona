@@ -1,4 +1,5 @@
 package dev.brigitetarazona.pc2_irupaylla_tarazona.ui.Movimientos
+
 import android.app.DatePickerDialog
 import android.icu.util.Calendar
 import android.os.Bundle
@@ -11,10 +12,14 @@ import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dev.brigitetarazona.pc2_irupaylla_tarazona.R
 
 class MovimientosFragment : Fragment() {
+
+    private val db = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -29,9 +34,6 @@ class MovimientosFragment : Fragment() {
         val etDescripcion: EditText = view.findViewById(R.id.etDescripcion)
         val etMonto: EditText = view.findViewById(R.id.etMonto)
         val btRegistrar: Button = view.findViewById(R.id.btRegistrar)
-
-        // Inicializar Firestore
-        val db = FirebaseFirestore.getInstance()
 
         // Mostrar DatePickerDialog
         etFecha.setOnClickListener {
@@ -59,23 +61,31 @@ class MovimientosFragment : Fragment() {
                 }
 
                 // Crear el modelo de movimiento
-                val movimiento =
-                    dev.brigitetarazona.pc2_irupaylla_tarazona.ui.Movimientos.model.MovimientosModel(
-                        tipo = tipo,
-                        monto = resultado,
-                        fecha = fechaText,
-                        descripcion = descripcionText
-                    )
+                val movimiento = dev.brigitetarazona.pc2_irupaylla_tarazona.ui.Movimientos.model.MovimientosModel(
+                    tipo = tipo,
+                    monto = resultado,
+                    fecha = fechaText,
+                    descripcion = descripcionText
+                )
 
-                // Guardar el movimiento en Firestore
-                db.collection("movimientos")
-                    .add(movimiento)
-                    .addOnSuccessListener {
-                        Toast.makeText(requireContext(), "Registro Grabado con Exito", Toast.LENGTH_SHORT).show()
-                    }
-                    .addOnFailureListener { e ->
-                        Toast.makeText(requireContext(), "Error al guardar el registro: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
+                // Obtener el userId del usuario actual (suponiendo que el usuario está autenticado)
+                val userId = auth.currentUser?.uid
+
+                if (userId != null) {
+                    // Guardar el movimiento en la subcolección 'movimientos' dentro del documento 'users/{userId}'
+                    db.collection("users")
+                        .document(userId) // Aquí se accede al documento del usuario
+                        .collection("movimientos") // Subcolección 'movimientos'
+                        .add(movimiento)
+                        .addOnSuccessListener {
+                            Toast.makeText(requireContext(), "Registro Grabado con Exito", Toast.LENGTH_SHORT).show()
+                        }
+                        .addOnFailureListener { e ->
+                            Toast.makeText(requireContext(), "Error al guardar el registro: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                } else {
+                    Toast.makeText(requireContext(), "Error: Usuario no autenticado", Toast.LENGTH_SHORT).show()
+                }
             } else {
                 if (montoText.isEmpty()) {
                     etMonto.error = "Ingrese un monto"
@@ -89,6 +99,7 @@ class MovimientosFragment : Fragment() {
                 Toast.makeText(requireContext(), "Verifique los datos ingresados", Toast.LENGTH_LONG).show()
             }
         }
+
         return view
     }
 
